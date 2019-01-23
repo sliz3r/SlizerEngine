@@ -31,7 +31,7 @@ namespace Engine
             return SE_ERROR;
         }
 
-        return 0;
+        return SE_CONTINUE;
     }
 
     int GraphicsEngine::Update(GLFWwindow* window)

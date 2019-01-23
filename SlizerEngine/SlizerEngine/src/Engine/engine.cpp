@@ -56,6 +56,7 @@ namespace Engine
 
         if (m_GraphicsEngine.Init() == SE_ERROR)
         {
+            glfwTerminate();
             return SE_ERROR;
         }
         
