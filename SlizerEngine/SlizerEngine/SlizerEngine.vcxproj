@@ -19,8 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="SourceFiles\Engine\Graphics\glad.c" />
+    <ClCompile Include="src\Engine\engine.cpp" />
+    <ClCompile Include="src\Engine\Graphics\glad.c" />
+    <ClCompile Include="src\Engine\Graphics\graphicsengine.cpp" />
+    <ClCompile Include="src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Engine\engine.h" />
+    <ClInclude Include="src\Engine\Graphics\graphicsengine.h" />
+    <ClInclude Include="src\Engine\utils.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{DC8B3E71-8EBF-406F-808C-1E28F1348943}</ProjectGuid>
@@ -77,6 +84,15 @@
     <LibraryPath>D:\ProjectsPortfolio\SlizerEngine\Libraries\Libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>D:\ProjectsPortfolio\SlizerEngine\SlizerEngine\SlizerEngine\src;D:\ProjectsPortfolio\SlizerEngine\Libraries\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ProjectsPortfolio\SlizerEngine\Libraries\Libs;$(LibraryPath)</LibraryPath>
+    <SourcePath>D:\ProjectsPortfolio\SlizerEngine\SlizerEngine\SlizerEngine\src;$(SourcePath)</SourcePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>D:\ProjectsPortfolio\SlizerEngine\Libraries\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ProjectsPortfolio\SlizerEngine\Libraries\Libs;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>D:\ProjectsPortfolio\SlizerEngine\Libraries\Include;$(IncludePath)</IncludePath>
     <LibraryPath>D:\ProjectsPortfolio\SlizerEngine\Libraries\Libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
@@ -96,6 +112,9 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -122,6 +141,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

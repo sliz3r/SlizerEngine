@@ -1,2 +1,4 @@
-﻿  SlizerEngine.vcxproj -> D:\ProjectsPortfolio\SlizerEngine\SlizerEngine\Debug\SlizerEngine.exe
+﻿  graphicsengine.cpp
+  glad.c
+  SlizerEngine.vcxproj -> D:\ProjectsPortfolio\SlizerEngine\SlizerEngine\Debug\SlizerEngine.exe
   SlizerEngine.vcxproj -> D:\ProjectsPortfolio\SlizerEngine\SlizerEngine\Debug\SlizerEngine.pdb (Partial PDB)
