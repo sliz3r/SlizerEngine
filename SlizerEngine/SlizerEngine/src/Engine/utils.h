@@ -3,12 +3,6 @@
 #define SE_CONTINUE 0
 
 #ifdef _DEBUG
-
-#define OUTPUT_MSG(...)             Framework::Debug::Internal::OutputConsolePrint(__VA_ARGS__)
-#define LOG_ERROR(tag, ...)         Framework::Editor::ConsoleLog(RGBAColor::Red, true, "error", tag, __VA_ARGS__)
-#define LOG_WARNING(tag, ...)       Framework::Editor::ConsoleLog(RGBAColor::Yellow, true, "warning", tag, __VA_ARGS__)
-#define LOG_INFO(tag, ...)          Framework::Editor::ConsoleLog(RGBAColor::White, true, "info", tag, __VA_ARGS__)
-#define ALERT(tag, ...)             Framework::Debug::Internal::ShowAlertPopup(tag, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 #define DEBUG_EXP(exp)              exp
 #ifdef _WIN32
 #define ASSERT_INVALID()            __debugbreak()
