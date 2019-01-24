@@ -1,7 +1,9 @@
+#include <vector>
 #define SE_ERROR -1
 #define SE_CONTINUE 0
 
 #ifdef _DEBUG
+
 #define OUTPUT_MSG(...)             Framework::Debug::Internal::OutputConsolePrint(__VA_ARGS__)
 #define LOG_ERROR(tag, ...)         Framework::Editor::ConsoleLog(RGBAColor::Red, true, "error", tag, __VA_ARGS__)
 #define LOG_WARNING(tag, ...)       Framework::Editor::ConsoleLog(RGBAColor::Yellow, true, "warning", tag, __VA_ARGS__)
@@ -16,6 +18,10 @@
 #define ASSERT(exp, ...)            if (!(exp)) ASSERT_INVALID()
 #define ASSERT_OR_ALERT(exp, ...)   ([&](){ if (!!(exp)) return (exp); ALERT("ALERT", __VA_ARGS__); exit(-1); })()
 
+const std::vector<const char*> G_ValidationLayers = {
+    "VK_LAYER_LUNARG_standard_validation"
+};
+
 #else
 
 #define OUTPUT_MSG(...)             void(0)
@@ -27,4 +33,5 @@
 #define DEBUG_EXP(exp)
 #define ASSERT(exp, ...)            void(0)
 #define ASSERT_OR_ALERT(exp,...)    void(0)
+
 #endif

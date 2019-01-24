@@ -1,5 +1,5 @@
 struct GLFWwindow;
-#include "Graphics/graphicsengine.h"
+class GraphicsEngine;
 
 namespace Engine
 {
@@ -12,12 +12,9 @@ namespace Engine
 
         int Init();
         int Update();
-        Engine& GetInstance();
-        static bool IsInstanciated() { return ms_Engine != nullptr; }
 
     private:
-        static Engine* ms_Engine;
-        GraphicsEngine m_GraphicsEngine;
+        GraphicsEngine* m_GraphicsEngine;
         GLFWwindow* window;
     };
 }
