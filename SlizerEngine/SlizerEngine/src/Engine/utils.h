@@ -1,6 +1,8 @@
 #include <vector>
 #define SE_ERROR -1
 #define SE_CONTINUE 0
+static constexpr unsigned int SCR_WIDTH = 800;
+static constexpr unsigned int SCR_HEIGHT = 600;
 
 #ifdef _DEBUG
 #define DEBUG_EXP(exp)              exp

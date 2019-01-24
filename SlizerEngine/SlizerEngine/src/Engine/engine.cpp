@@ -5,13 +5,6 @@
 
 namespace Engine
 {  
-   //WIP
-   // settings
-    static constexpr unsigned int SCR_WIDTH = 800;
-    static constexpr unsigned int SCR_HEIGHT = 600;
-    void processInput(GLFWwindow *window);
-   //
-
     Engine::Engine()
     {
         m_GraphicsEngine = new GraphicsEngine();
@@ -26,14 +19,8 @@ namespace Engine
 
     int Engine::Init()
     {
-        // glfw: initialize and configure
-        // ------------------------------
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-
-        // glfw window creation
-        // --------------------
         window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Slizer Engine - 3D Vulkan Engine", NULL, NULL);
         if (window == NULL)
         {
@@ -51,14 +38,12 @@ namespace Engine
 
     int Engine::Update()
     {
-        int returnValue = 0;
+        int returnValue = SE_CONTINUE;
         while (!glfwWindowShouldClose(window) && returnValue == SE_CONTINUE)
         {
-            // input
-            // -----
             processInput(window);
 
-            //Engine graphics
+            //Graphics update
             returnValue = m_GraphicsEngine->Update(window);
 
             glfwPollEvents();
@@ -66,9 +51,7 @@ namespace Engine
         return returnValue;
     }
 
-    // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-    // ---------------------------------------------------------------------------------------------------------
-    void processInput(GLFWwindow *window)
+    void Engine::processInput(GLFWwindow *window)
     {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);

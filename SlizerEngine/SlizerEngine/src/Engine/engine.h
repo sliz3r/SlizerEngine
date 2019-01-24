@@ -14,6 +14,9 @@ namespace Engine
         int Update();
 
     private:
+        void processInput(GLFWwindow *window);
+
+    private:
         GraphicsEngine* m_GraphicsEngine;
         GLFWwindow* window;
     };

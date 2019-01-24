@@ -15,6 +15,10 @@ namespace Engine
 
     private:
         int CreateVulkanInstance();
+        void PickPhysicalDevice();
+        bool IsDeviceSuitable(const VkPhysicalDevice& device) const;
+        int  RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const;
+        bool FindQueueFamilies(const VkPhysicalDevice& device) const;
 
 #ifdef _DEBUG
         bool CheckValidationLayerSupport();
@@ -28,6 +32,7 @@ namespace Engine
 
     private:
         VkInstance m_VulkanInstance;
+        VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
 
 #ifdef _DEBUG
         VkDebugUtilsMessengerEXT debugMessenger;

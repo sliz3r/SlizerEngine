@@ -6,6 +6,5 @@ int main()
     static Engine::Engine engine;
     int returnValue = engine.Init();
     return returnValue;
-    system("pause");
 }
 

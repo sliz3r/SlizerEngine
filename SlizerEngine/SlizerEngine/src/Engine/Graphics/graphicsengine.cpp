@@ -1,6 +1,7 @@
 #include "graphicsengine.h"
 #include <iostream>
 #include "Engine/utils.h"
+#include <map>
 
 namespace Engine
 {
@@ -21,6 +22,7 @@ namespace Engine
 #ifdef _DEBUG
         SetupDebugMessenger();
 #endif
+        PickPhysicalDevice();
         return returnValue;
     }
 
@@ -32,7 +34,8 @@ namespace Engine
     int GraphicsEngine::CreateVulkanInstance()
     {
 #ifdef _DEBUG
-        if (!CheckValidationLayerSupport()) {
+        if (!CheckValidationLayerSupport()) 
+        {
             throw std::runtime_error("validation layers requested, but not available!");
         }
 #endif
@@ -69,6 +72,104 @@ namespace Engine
             return SE_ERROR;
     }
 
+    void GraphicsEngine::PickPhysicalDevice()
+    {
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, nullptr);
+
+        if (deviceCount == 0)
+        {
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        }
+
+        std::multimap<int, VkPhysicalDevice> candidates;
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, devices.data());
+
+        //Use IsDeviceSuitable() method to get the first Device usable that accept Graphic commands. Use RateDeviceSuitability() to get the best device depending on custom parameters.
+        /*for (const auto& device : devices)
+        {
+            int score = RateDeviceSuitability(device, false);
+            candidates.insert(std::make_pair(score, device));
+        }
+
+        if (candidates.rbegin()->first > 0) 
+        {
+            m_PhysicalDevice = candidates.rbegin()->second;
+        }
+        else 
+        {
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }*/
+
+        for (const auto& device : devices) 
+        {
+            if (IsDeviceSuitable(device)) 
+            {
+                m_PhysicalDevice = device;
+                break;
+            }
+        }
+
+        if (m_PhysicalDevice == VK_NULL_HANDLE) 
+        {
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }
+    }
+
+    bool GraphicsEngine::IsDeviceSuitable(const VkPhysicalDevice& device) const
+    {   
+        return FindQueueFamilies(device);
+    }
+
+    int GraphicsEngine::RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const
+    {
+        //Custom this in case we need more features or properties.
+        VkPhysicalDeviceProperties deviceProperties;
+        VkPhysicalDeviceFeatures deviceFeatures;
+        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+        int score = 0;
+
+        // Discrete GPUs have a significant performance advantage
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) 
+        {
+            score += 1000;
+        }
+
+        // Maximum possible size of textures affects graphics quality
+        score += deviceProperties.limits.maxImageDimension2D;
+        
+        if (!deviceFeatures.geometryShader || needToCheckForVR? !deviceFeatures.multiViewport : false)
+        {
+            return 0;
+        }
+
+        return score;
+    }
+
+    bool GraphicsEngine::FindQueueFamilies(const VkPhysicalDevice& device) const
+    {
+        std::vector<uint32_t> indices;
+
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+        for (const auto& queueFamily : queueFamilies) 
+        {
+            if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 #ifdef _DEBUG
     bool GraphicsEngine::CheckValidationLayerSupport()
     {
@@ -78,22 +179,41 @@ namespace Engine
         std::vector<VkLayerProperties> availableLayers(layerCount);
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-        for (const char* layerName : G_ValidationLayers) {
+        for (const char* layerName : G_ValidationLayers) 
+        {
             bool layerFound = false;
 
-            for (const auto& layerProperties : availableLayers) {
-                if (strcmp(layerName, layerProperties.layerName) == 0) {
+            for (const auto& layerProperties : availableLayers)
+            {
+                if (strcmp(layerName, layerProperties.layerName) == 0) 
+                {
                     layerFound = true;
                     break;
                 }
             }
 
-            if (!layerFound) {
+            if (!layerFound) 
+            {
                 return false;
             }
         }
 
         return true;
+    }
+
+    void GraphicsEngine::SetupDebugMessenger()
+    {
+        VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = DebugCallback;
+        createInfo.pUserData = nullptr;
+
+        if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) 
+        {
+            throw std::runtime_error("Failed to set up debug messenger!");
+        }
     }
 
     VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT * pCallbackData, void * pUserData)
@@ -122,20 +242,6 @@ namespace Engine
         if (functor != nullptr)
         {
             functor(instance, debugMessenger, pAllocator);
-        }
-    }
-
-    void GraphicsEngine::SetupDebugMessenger()
-    {
-        VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = DebugCallback;
-        createInfo.pUserData = nullptr;
-
-        if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to set up debug messenger!");
         }
     }
 #endif
