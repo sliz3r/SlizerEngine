@@ -1,7 +1,7 @@
 #include "graphicsengine.h"
 #include <iostream>
 #include "Engine/utils.h"
-#include <map>
+//#include <map>
 
 namespace Engine
 {
@@ -82,12 +82,13 @@ namespace Engine
             throw std::runtime_error("failed to find GPUs with Vulkan support!");
         }
 
-        std::multimap<int, VkPhysicalDevice> candidates;
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, devices.data());
 
         //Use IsDeviceSuitable() method to get the first Device usable that accept Graphic commands. Use RateDeviceSuitability() to get the best device depending on custom parameters.
-        /*for (const auto& device : devices)
+        /*
+        std::multimap<int, VkPhysicalDevice> candidates;
+        for (const auto& device : devices)
         {
             int score = RateDeviceSuitability(device, false);
             candidates.insert(std::make_pair(score, device));
