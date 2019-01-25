@@ -10,6 +10,7 @@ namespace Engine
 
     GraphicsEngine::~GraphicsEngine()
     {
+        vkDestroyDevice(m_Device, nullptr);
 #ifdef _DEBUG
         DestroyDebugUtilsMessengerEXT(m_VulkanInstance, debugMessenger, nullptr);
 #endif
@@ -23,6 +24,7 @@ namespace Engine
         SetupDebugMessenger();
 #endif
         PickPhysicalDevice();
+        CreateLogicalDevice();
         return returnValue;
     }
 
@@ -118,9 +120,51 @@ namespace Engine
         }
     }
 
+    void GraphicsEngine::CreateLogicalDevice()
+    {
+        int queueFamilyIndex;    
+        if(FindQueueFamilies(m_PhysicalDevice, queueFamilyIndex))
+        {
+            VkDeviceQueueCreateInfo queueCreateInfo = {};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+            queueCreateInfo.queueCount = 1;
+            float queuePriority = 1.0f;
+            queueCreateInfo.pQueuePriorities = &queuePriority;
+
+            //Custom this parameter in the future
+            VkPhysicalDeviceFeatures deviceFeatures = {};
+
+            VkDeviceCreateInfo createInfo = {};
+            createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+            createInfo.pQueueCreateInfos = &queueCreateInfo;
+            createInfo.queueCreateInfoCount = 1;
+            createInfo.pEnabledFeatures = &deviceFeatures;
+#ifdef _DEBUG
+            createInfo.enabledLayerCount = static_cast<uint32_t>(G_ValidationLayers.size());
+            createInfo.ppEnabledLayerNames = G_ValidationLayers.data();
+#else
+            createInfo.enabledLayerCount = 0;
+#endif
+       
+            if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) 
+            {
+                throw std::runtime_error("failed to create logical device!");
+            }
+
+            vkGetDeviceQueue(m_Device, queueFamilyIndex, 0, &m_GraphicsQueue);
+        }
+        else
+        {
+            //Extra check
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }
+    }
+
     bool GraphicsEngine::IsDeviceSuitable(const VkPhysicalDevice& device) const
     {   
-        return FindQueueFamilies(device);
+        int dummy;
+        return FindQueueFamilies(device, dummy);
     }
 
     int GraphicsEngine::RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const
@@ -150,7 +194,7 @@ namespace Engine
         return score;
     }
 
-    bool GraphicsEngine::FindQueueFamilies(const VkPhysicalDevice& device) const
+    bool GraphicsEngine::FindQueueFamilies(const VkPhysicalDevice& device, int& queueFamilyIndex) const
     {
         std::vector<uint32_t> indices;
 
@@ -160,12 +204,15 @@ namespace Engine
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
+        queueFamilyIndex = 0;
         for (const auto& queueFamily : queueFamilies) 
         {
             if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 return true;
             }
+
+            ++queueFamilyIndex;
         }
 
         return false;
@@ -206,7 +253,7 @@ namespace Engine
     {
         VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageSeverity = /*VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | */ VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = DebugCallback;
         createInfo.pUserData = nullptr;
@@ -247,7 +294,7 @@ namespace Engine
     }
 #endif
 
-    std::vector<const char*> GraphicsEngine::GetRequiredExtensions()
+    std::vector<const char*> GraphicsEngine::GetRequiredExtensions() const
     {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
