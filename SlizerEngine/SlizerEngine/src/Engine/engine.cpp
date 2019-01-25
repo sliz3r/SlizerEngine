@@ -28,7 +28,7 @@ namespace Engine
             return SE_ERROR;
         }
 
-        if (m_GraphicsEngine->Init() == SE_ERROR)
+        if (m_GraphicsEngine->Init(window) == SE_ERROR)
         {
             return SE_ERROR;
         }
@@ -44,7 +44,7 @@ namespace Engine
             processInput(window);
 
             //Graphics update
-            returnValue = m_GraphicsEngine->Update(window);
+            returnValue = m_GraphicsEngine->Update();
 
             glfwPollEvents();
         }
