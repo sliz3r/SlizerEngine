@@ -1,7 +1,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vector>
 #include <stdint.h>
+#include <vector>
 
 namespace Engine
 {
@@ -30,12 +30,14 @@ namespace Engine
         void CreateWindowSurface();
         void PickPhysicalDevice();
         void CreateLogicalDevice();
+        void CreateSwapChain();
         bool IsDeviceSuitable(const VkPhysicalDevice& device) const;
         int  RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& device) const;
+        bool CheckDeviceExtensionSupport(const VkPhysicalDevice& device) const;
 
 #ifdef _DEBUG
-        bool CheckValidationLayerSupport();
+        bool CheckValidationLayerSupport() const;
         void SetupDebugMessenger();
 
         static   VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback( VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
@@ -54,10 +56,15 @@ namespace Engine
         VkDevice m_Device;
         VkQueue m_GraphicsQueue;
         VkQueue m_PresentQueue;
-        //
+        //TODO(dcervera):Wrap VkSwapchainKHR && std::vector<VkImage> in order to have all SwapChain functionality in a single class 
+        VkSwapchainKHR m_SwapChain;
+        std::vector<VkImage> m_SwapChainImages;
+        VkFormat m_SwapChainImageFormat;
+        VkExtent2D m_SwapChainExtent;
+        //END TODO(dcervera)
 
 #ifdef _DEBUG
-        VkDebugUtilsMessengerEXT debugMessenger;
+        VkDebugUtilsMessengerEXT m_DebugMessenger;
 #endif
     };
 }

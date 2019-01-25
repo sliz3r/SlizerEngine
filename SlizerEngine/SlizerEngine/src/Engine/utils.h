@@ -4,6 +4,11 @@
 static constexpr unsigned int SCR_WIDTH = 800;
 static constexpr unsigned int SCR_HEIGHT = 600;
 
+const std::vector<const char*> g_DeviceExtensions =
+{
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 #ifdef _DEBUG
 #define DEBUG_EXP(exp)              exp
 #ifdef _WIN32
@@ -14,7 +19,8 @@ static constexpr unsigned int SCR_HEIGHT = 600;
 #define ASSERT(exp, ...)            if (!(exp)) ASSERT_INVALID()
 #define ASSERT_OR_ALERT(exp, ...)   ([&](){ if (!!(exp)) return (exp); ALERT("ALERT", __VA_ARGS__); exit(-1); })()
 
-const std::vector<const char*> G_ValidationLayers = {
+const std::vector<const char*> g_ValidationLayers = 
+{
     "VK_LAYER_LUNARG_standard_validation"
 };
 

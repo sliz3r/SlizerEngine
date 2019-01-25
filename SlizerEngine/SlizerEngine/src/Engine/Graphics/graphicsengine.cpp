@@ -1,8 +1,101 @@
 #include "graphicsengine.h"
 #include <iostream>
-#include "Engine/utils.h"
 #include <set>
-//#include <map>
+#include "Engine/utils.h"
+#include <algorithm>
+
+//TODO(dcervera):Wrap VkSwapchainKHR && std::vector<VkImage> in order to have all SwapChain functionality in a single class 
+struct SwapChainSupportDetails
+{
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+
+    void QuerySwapChainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& windowSurface, GLFWwindow* pWindow)
+    {
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, windowSurface, &capabilities);
+
+        uint32_t formatCount;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, windowSurface, &formatCount, nullptr);
+
+        if (formatCount != 0)
+        {
+            formats.resize(formatCount);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, windowSurface, &formatCount, formats.data());
+        }
+
+        uint32_t presentModesCount;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, windowSurface, &presentModesCount, nullptr);
+
+        if (presentModesCount != 0)
+        {
+            presentModes.resize(presentModesCount);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, windowSurface, &presentModesCount, presentModes.data());
+        }
+    }
+
+    VkSurfaceFormatKHR ChooseSwapSurfaceFormat() const
+    {
+        //Custom values. We can edit this method in the future.
+        if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+        {
+            return{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+        }
+
+        for (const auto& availableFormat : formats)
+        {
+            if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            {
+                return availableFormat;
+            }
+        }
+
+        return formats[0];
+    }
+
+    VkPresentModeKHR ChooseSwapPresentMode()
+    {
+        VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
+
+        //Custom values. We can edit this method in the future.
+        // 1. VK_PRESENT_MODE_MAILBOX_KHR 
+        // 2. VK_PRESENT_MODE_IMMEDIATE_KHR
+        // 3. VK_PRESENT_MODE_FIFO_KHR
+
+        for (const auto& availablePresentMode : presentModes)
+        {
+            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+            {
+                return availablePresentMode;
+            }
+            else if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+            {
+                bestMode = availablePresentMode;
+            }
+        }
+
+        return bestMode;
+    }
+
+    VkExtent2D ChooseSwapExtent()
+    {
+        if (capabilities.currentExtent.width != UINT32_MAX)
+        {
+            return capabilities.currentExtent;
+        }
+        else
+        {
+            //TODO(dcervera) Use utils.h wheh moving the whole SwapChain features to other class
+            VkExtent2D actualExtent = { SCR_WIDTH, SCR_HEIGHT };
+
+            actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+            actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+
+            return actualExtent;
+        }
+    }
+};
+//END TODO(dcervera)
 
 namespace Engine
 {
@@ -11,9 +104,10 @@ namespace Engine
 
     GraphicsEngine::~GraphicsEngine()
     {
+        vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
         vkDestroyDevice(m_Device, nullptr);
 #ifdef _DEBUG
-        DestroyDebugUtilsMessengerEXT(m_VulkanInstance, debugMessenger, nullptr);
+        DestroyDebugUtilsMessengerEXT(m_VulkanInstance, m_DebugMessenger, nullptr);
 #endif
         vkDestroySurfaceKHR(m_VulkanInstance, m_WindowSurface, nullptr);
         vkDestroyInstance(m_VulkanInstance, nullptr);
@@ -34,6 +128,7 @@ namespace Engine
         CreateWindowSurface();
         PickPhysicalDevice();
         CreateLogicalDevice();
+        CreateSwapChain();
         return returnValue;
     }
 
@@ -69,8 +164,8 @@ namespace Engine
         createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         createInfo.ppEnabledExtensionNames = extensions.data();
 #ifdef _DEBUG
-        createInfo.enabledLayerCount = static_cast<uint32_t>(G_ValidationLayers.size());
-        createInfo.ppEnabledLayerNames = G_ValidationLayers.data();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(g_ValidationLayers.size());
+        createInfo.ppEnabledLayerNames = g_ValidationLayers.data();
 #else
         createInfo.enabledLayerCount = 0;
 #endif
@@ -104,7 +199,7 @@ namespace Engine
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, devices.data());
 
-        //Use IsDeviceSuitable() method to get the first Device usable that accept Graphic commands. Use RateDeviceSuitability() to get the best device depending on custom parameters.
+        //Use RateDeviceSuitability() to get the best device depending on custom parameters.
         /*
         std::multimap<int, VkPhysicalDevice> candidates;
         for (const auto& device : devices)
@@ -162,10 +257,11 @@ namespace Engine
         createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         createInfo.pEnabledFeatures = &deviceFeatures;
-        createInfo.enabledExtensionCount = 0;
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(g_DeviceExtensions.size());
+        createInfo.ppEnabledExtensionNames = g_DeviceExtensions.data();
 #ifdef _DEBUG
-        createInfo.enabledLayerCount = static_cast<uint32_t>(G_ValidationLayers.size());
-        createInfo.ppEnabledLayerNames = G_ValidationLayers.data();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(g_ValidationLayers.size());
+        createInfo.ppEnabledLayerNames = g_ValidationLayers.data();
 #else
         createInfo.enabledLayerCount = 0;
 #endif
@@ -179,10 +275,78 @@ namespace Engine
         vkGetDeviceQueue(m_Device, indices.presentFamily, 0, &m_PresentQueue);
     }
 
+    void GraphicsEngine::CreateSwapChain()
+    {
+        SwapChainSupportDetails swapChainSupport;
+        swapChainSupport.QuerySwapChainSupport(m_PhysicalDevice, m_WindowSurface, m_Window);
+
+        VkSurfaceFormatKHR surfaceFormat = swapChainSupport.ChooseSwapSurfaceFormat();
+        VkPresentModeKHR presentMode = swapChainSupport.ChooseSwapPresentMode();
+        VkExtent2D extent = swapChainSupport.ChooseSwapExtent();
+
+        uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+        if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) 
+        {
+            imageCount = swapChainSupport.capabilities.maxImageCount;
+        }
+
+        VkSwapchainCreateInfoKHR createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = m_WindowSurface;
+        createInfo.minImageCount = imageCount;
+        createInfo.imageFormat = surfaceFormat.format;
+        createInfo.imageColorSpace = surfaceFormat.colorSpace;
+        createInfo.imageExtent = extent;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; /*VK_IMAGE_USAGE_TRANSFER_DST_BIT ->  For postprocessing purposes*/
+
+        QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
+        uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentFamily };
+
+        if (indices.graphicsFamily != indices.presentFamily) 
+        {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = 2;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        }
+        else 
+        {
+            createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            createInfo.queueFamilyIndexCount = 0;
+            createInfo.pQueueFamilyIndices = nullptr;
+        }
+        createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode = presentMode;
+        createInfo.clipped = VK_TRUE;
+        createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+        if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create swap chain!");
+        }
+
+        vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, nullptr);
+        m_SwapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, m_SwapChainImages.data());
+
+        m_SwapChainImageFormat = surfaceFormat.format;
+        m_SwapChainExtent = extent;
+    }
+
     bool GraphicsEngine::IsDeviceSuitable(const VkPhysicalDevice& device) const
     {   
         QueueFamilyIndices indices = FindQueueFamilies(device);
-        return indices.IsComplete();
+        bool extensionsSupported = CheckDeviceExtensionSupport(device);
+        bool swapChainAdequate = false;
+        if (extensionsSupported)
+        {
+            SwapChainSupportDetails swapChainSupport;
+            swapChainSupport.QuerySwapChainSupport(device, m_WindowSurface, m_Window);
+            swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+        }
+
+        return indices.IsComplete() && swapChainAdequate;
     }
 
     int GraphicsEngine::RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const
@@ -248,8 +412,25 @@ namespace Engine
         return indices;
     }
 
+    bool GraphicsEngine::CheckDeviceExtensionSupport(const VkPhysicalDevice& device) const
+    {
+        uint32_t extensionCount;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+        std::set<std::string> requiredExtensions(g_DeviceExtensions.begin(), g_DeviceExtensions.end());
+        for (const auto& extension : availableExtensions)
+        {
+            requiredExtensions.erase(extension.extensionName);
+        }
+
+        return requiredExtensions.empty();
+    }
+
 #ifdef _DEBUG
-    bool GraphicsEngine::CheckValidationLayerSupport()
+    bool GraphicsEngine::CheckValidationLayerSupport() const
     {
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -257,26 +438,13 @@ namespace Engine
         std::vector<VkLayerProperties> availableLayers(layerCount);
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-        for (const char* layerName : G_ValidationLayers) 
+        std::set<std::string> requiredLayers(g_ValidationLayers.begin(), g_ValidationLayers.end());
+        for (const auto& layer : availableLayers)
         {
-            bool layerFound = false;
-
-            for (const auto& layerProperties : availableLayers)
-            {
-                if (strcmp(layerName, layerProperties.layerName) == 0) 
-                {
-                    layerFound = true;
-                    break;
-                }
-            }
-
-            if (!layerFound) 
-            {
-                return false;
-            }
+            requiredLayers.erase(layer.layerName);
         }
 
-        return true;
+        return requiredLayers.empty();
     }
 
     void GraphicsEngine::SetupDebugMessenger()
@@ -288,7 +456,7 @@ namespace Engine
         createInfo.pfnUserCallback = DebugCallback;
         createInfo.pUserData = nullptr;
 
-        if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) 
+        if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to set up debug messenger!");
         }
@@ -297,7 +465,7 @@ namespace Engine
     VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT * pCallbackData, void * pUserData)
     {
         std::cerr << "validation layer: " << pCallbackData->pMessage << ". Severity: " << messageSeverity << std::endl;
-        ASSERT(messageSeverity != VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
+        ASSERT(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
         return VK_FALSE;
     }
 
@@ -336,5 +504,4 @@ namespace Engine
 #endif
         return extensions;
     }
-
 }
