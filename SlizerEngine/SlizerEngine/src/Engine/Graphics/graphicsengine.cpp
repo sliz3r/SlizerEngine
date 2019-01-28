@@ -104,6 +104,11 @@ namespace Engine
 
     GraphicsEngine::~GraphicsEngine()
     {
+        for (auto imageView : m_SwapChainImageViews) 
+        {
+            vkDestroyImageView(m_Device, imageView, nullptr);
+        }
+
         vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
         vkDestroyDevice(m_Device, nullptr);
 #ifdef _DEBUG
@@ -129,6 +134,7 @@ namespace Engine
         PickPhysicalDevice();
         CreateLogicalDevice();
         CreateSwapChain();
+        CreateImageViews();
         return returnValue;
     }
 
@@ -334,7 +340,36 @@ namespace Engine
         m_SwapChainExtent = extent;
     }
 
-    bool GraphicsEngine::IsDeviceSuitable(const VkPhysicalDevice& device) const
+    void GraphicsEngine::CreateImageViews()
+    {
+        for (int i = 0; i < m_SwapChainImages.size() ; ++i)
+        {
+            VkImageViewCreateInfo createInfo = {};
+            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            createInfo.image = m_SwapChainImages[i];
+
+            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            createInfo.format = m_SwapChainImageFormat;
+
+            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            createInfo.subresourceRange.baseMipLevel = 0;
+            createInfo.subresourceRange.levelCount = 1;
+            createInfo.subresourceRange.baseArrayLayer = 0;
+            createInfo.subresourceRange.layerCount = 1;
+
+            if (vkCreateImageView(m_Device, &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create image views!");
+            }
+        }
+    }
+
+    bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const
     {   
         QueueFamilyIndices indices = FindQueueFamilies(device);
         bool extensionsSupported = CheckDeviceExtensionSupport(device);
@@ -349,7 +384,7 @@ namespace Engine
         return indices.IsComplete() && swapChainAdequate;
     }
 
-    int GraphicsEngine::RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const
+    int GraphicsEngine::RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const
     {
         //Custom this in case we need more features or properties.
         VkPhysicalDeviceProperties deviceProperties;
@@ -376,7 +411,7 @@ namespace Engine
         return score;
     }
 
-    QueueFamilyIndices GraphicsEngine::FindQueueFamilies(const VkPhysicalDevice& device) const
+    QueueFamilyIndices GraphicsEngine::FindQueueFamilies(VkPhysicalDevice device) const
     {
         QueueFamilyIndices indices;
         uint32_t queueFamilyCount = 0;
@@ -412,7 +447,7 @@ namespace Engine
         return indices;
     }
 
-    bool GraphicsEngine::CheckDeviceExtensionSupport(const VkPhysicalDevice& device) const
+    bool GraphicsEngine::CheckDeviceExtensionSupport(VkPhysicalDevice device) const
     {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);

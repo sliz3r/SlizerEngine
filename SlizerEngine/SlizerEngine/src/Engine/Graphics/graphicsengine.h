@@ -31,16 +31,17 @@ namespace Engine
         void PickPhysicalDevice();
         void CreateLogicalDevice();
         void CreateSwapChain();
-        bool IsDeviceSuitable(const VkPhysicalDevice& device) const;
-        int  RateDeviceSuitability(const VkPhysicalDevice& device, bool needToCheckForVR) const;
-        QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& device) const;
-        bool CheckDeviceExtensionSupport(const VkPhysicalDevice& device) const;
+        void CreateImageViews();
+        bool IsDeviceSuitable(VkPhysicalDevice device) const;
+        int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
+        QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
+        bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
 
 #ifdef _DEBUG
         bool CheckValidationLayerSupport() const;
         void SetupDebugMessenger();
 
-        static   VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback( VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+        static   VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
         VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
         void     DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 #endif
@@ -59,6 +60,7 @@ namespace Engine
         //TODO(dcervera):Wrap VkSwapchainKHR && std::vector<VkImage> in order to have all SwapChain functionality in a single class 
         VkSwapchainKHR m_SwapChain;
         std::vector<VkImage> m_SwapChainImages;
+        std::vector<VkImageView> m_SwapChainImageViews;
         VkFormat m_SwapChainImageFormat;
         VkExtent2D m_SwapChainExtent;
         //END TODO(dcervera)
