@@ -11,7 +11,7 @@ struct SwapChainSupportDetails
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 
-    void QuerySwapChainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& windowSurface, GLFWwindow* pWindow)
+    void QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR windowSurface, GLFWwindow* pWindow)
     {
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, windowSurface, &capabilities);
 
@@ -342,6 +342,7 @@ namespace Engine
 
     void GraphicsEngine::CreateImageViews()
     {
+        m_SwapChainImageViews.resize(m_SwapChainImages.size());
         for (int i = 0; i < m_SwapChainImages.size() ; ++i)
         {
             VkImageViewCreateInfo createInfo = {};
