@@ -32,10 +32,12 @@ namespace Engine
         void CreateLogicalDevice();
         void CreateSwapChain();
         void CreateImageViews();
+        void CreateGraphicsPipeline();
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
         bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
+        VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode);
 
 #ifdef _DEBUG
         bool CheckValidationLayerSupport() const;
@@ -64,6 +66,8 @@ namespace Engine
         VkFormat m_SwapChainImageFormat;
         VkExtent2D m_SwapChainExtent;
         //END TODO(dcervera)
+
+        VkPipelineLayout m_PipelineLayout;
 
 #ifdef _DEBUG
         VkDebugUtilsMessengerEXT m_DebugMessenger;

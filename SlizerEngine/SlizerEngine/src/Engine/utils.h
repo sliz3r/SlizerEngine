@@ -1,6 +1,8 @@
 #include <vector>
+#include <fstream>
 #define SE_ERROR -1
 #define SE_CONTINUE 0
+
 static constexpr unsigned int SCR_WIDTH = 800;
 static constexpr unsigned int SCR_HEIGHT = 600;
 
@@ -8,6 +10,26 @@ const std::vector<const char*> g_DeviceExtensions =
 {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
+
+static std::vector<char> readFile(const std::string& filename) 
+{
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) 
+    {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
+}
 
 #ifdef _DEBUG
 #define DEBUG_EXP(exp)              exp
