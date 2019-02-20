@@ -32,6 +32,7 @@ namespace Engine
         void CreateLogicalDevice();
         void CreateSwapChain();
         void CreateImageViews();
+        void CreateRenderPass();
         void CreateGraphicsPipeline();
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
@@ -68,6 +69,8 @@ namespace Engine
         //END TODO(dcervera)
 
         VkPipelineLayout m_PipelineLayout;
+        VkRenderPass m_RenderPass;
+        VkPipeline m_GraphicsPipeline;
 
 #ifdef _DEBUG
         VkDebugUtilsMessengerEXT m_DebugMessenger;
