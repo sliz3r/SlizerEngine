@@ -34,6 +34,7 @@ namespace Engine
         void CreateImageViews();
         void CreateRenderPass();
         void CreateGraphicsPipeline();
+        void CreateFramebuffers();
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
@@ -67,6 +68,7 @@ namespace Engine
         VkFormat m_SwapChainImageFormat;
         VkExtent2D m_SwapChainExtent;
         //END TODO(dcervera)
+        std::vector<VkFramebuffer> m_SwapChainFramebuffers;
 
         VkPipelineLayout m_PipelineLayout;
         VkRenderPass m_RenderPass;

@@ -103,6 +103,11 @@ namespace Engine
 
     GraphicsEngine::~GraphicsEngine()
     {
+        for (auto framebuffer : m_SwapChainFramebuffers) 
+        {
+            vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+        }
+
         vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
         vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
         vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
@@ -140,6 +145,7 @@ namespace Engine
         CreateImageViews();
         CreateRenderPass();
         CreateGraphicsPipeline();
+        CreateFramebuffers();
         return returnValue;
     }
 
@@ -563,6 +569,30 @@ namespace Engine
 
         vkDestroyShaderModule(m_Device, vertexShaderModule, nullptr);
         vkDestroyShaderModule(m_Device, fragmentShaderModule, nullptr);
+    }
+
+    void GraphicsEngine::CreateFramebuffers()
+    {
+        m_SwapChainFramebuffers.resize(m_SwapChainImageViews.size());
+
+        for (size_t i = 0; i < m_SwapChainImageViews.size(); ++i)
+        {
+            VkImageView attachments[] = { m_SwapChainImageViews[i] };
+
+            VkFramebufferCreateInfo frameBufferInfo = {};
+            frameBufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            frameBufferInfo.renderPass = m_RenderPass;
+            frameBufferInfo.attachmentCount = 1;
+            frameBufferInfo.pAttachments = attachments;
+            frameBufferInfo.width = m_SwapChainExtent.width;
+            frameBufferInfo.height = m_SwapChainExtent.height;
+            frameBufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(m_Device, &frameBufferInfo, nullptr, &m_SwapChainFramebuffers[i]) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create framebuffer!");
+            }
+        }
     }
 
     bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const
