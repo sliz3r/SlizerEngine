@@ -1,8 +1,20 @@
 #include "graphicsengine.h"
 #include <iostream>
 #include <set>
-#include "Engine/utils.h"
 #include <algorithm>
+#include "Engine/fileutils.h"
+
+//TODO(dcervera) find a proper place for this
+static const std::vector<const char*> g_DeviceExtensions =
+{
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
+static const std::vector<const char*> g_ValidationLayers =
+{
+    "VK_LAYER_LUNARG_standard_validation"
+};
+//
 
 //TODO(dcervera):Wrap VkSwapchainKHR && std::vector<VkImage> in order to have all SwapChain functionality in a single class 
 struct SwapChainSupportDetails
@@ -98,12 +110,38 @@ struct SwapChainSupportDetails
 
 namespace Engine
 {
-    GraphicsEngine::GraphicsEngine()
+    GraphicsEngine::~GraphicsEngine()
     {}
 
-    GraphicsEngine::~GraphicsEngine()
+    void GraphicsEngine::Init(GLFWwindow* window)
     {
-        for (auto framebuffer : m_SwapChainFramebuffers) 
+        if (window == NULL)
+        {
+            throw std::runtime_error("The window that you are sending to the graphics engine is NULL!");
+        }
+
+        m_Window = window;
+        CreateVulkanInstance();
+#ifdef _DEBUG
+        SetupDebugMessenger();
+#endif
+        CreateWindowSurface();
+        PickPhysicalDevice();
+        CreateLogicalDevice();
+        CreateSwapChain();
+        CreateImageViews();
+        CreateRenderPass();
+        CreateGraphicsPipeline();
+        CreateFramebuffers();
+        CreateCommandPool();
+    }
+
+    void GraphicsEngine::Update()
+    {}
+
+    void GraphicsEngine::DeInit()
+    {
+        for (auto framebuffer : m_SwapChainFramebuffers)
         {
             vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
         }
@@ -112,7 +150,7 @@ namespace Engine
         vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
         vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 
-        for (auto imageView : m_SwapChainImageViews) 
+        for (auto imageView : m_SwapChainImageViews)
         {
             vkDestroyImageView(m_Device, imageView, nullptr);
         }
@@ -126,35 +164,7 @@ namespace Engine
         vkDestroyInstance(m_VulkanInstance, nullptr);
     }
 
-    int GraphicsEngine::Init(GLFWwindow* window)
-    {
-        if (!window)
-        {
-            throw std::runtime_error("failed: the window that you are sending to the graphics engine is nullptr!");
-        }
-        m_Window = window;
-
-        int returnValue = CreateVulkanInstance();
-#ifdef _DEBUG
-        SetupDebugMessenger();
-#endif
-        CreateWindowSurface();
-        PickPhysicalDevice();
-        CreateLogicalDevice();
-        CreateSwapChain();
-        CreateImageViews();
-        CreateRenderPass();
-        CreateGraphicsPipeline();
-        CreateFramebuffers();
-        return returnValue;
-    }
-
-    int GraphicsEngine::Update()
-    {
-        return SE_CONTINUE;
-    }
-
-    int GraphicsEngine::CreateVulkanInstance()
+    void GraphicsEngine::CreateVulkanInstance()
     {
 #ifdef _DEBUG
         if (!CheckValidationLayerSupport()) 
@@ -187,12 +197,11 @@ namespace Engine
         createInfo.enabledLayerCount = 0;
 #endif
 
-        VkResult result = vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance);
+        if (vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create Vulkan Instance!");
+        }
 
-        if (result == VK_SUCCESS)
-            return SE_CONTINUE;
-        else
-            return SE_ERROR;
     }
 
     void GraphicsEngine::CreateWindowSurface()
@@ -593,6 +602,11 @@ namespace Engine
                 throw std::runtime_error("failed to create framebuffer!");
             }
         }
+    }
+
+    void GraphicsEngine::CreateCommandPool()
+    {
+
     }
 
     bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const

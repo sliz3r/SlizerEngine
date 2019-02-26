@@ -1,6 +1,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <stdint.h>
+#include "Engine/utils.h"
 #include <vector>
 
 namespace Engine
@@ -18,15 +19,19 @@ namespace Engine
 
     class GraphicsEngine
     {
+        NON_COPYABLE_CLASS(GraphicsEngine);
+        friend class Engine;
+
     public:
-        GraphicsEngine();
+        GraphicsEngine() = default;
         ~GraphicsEngine();
 
-        int Init(GLFWwindow* window);
-        int Update();
+        void Init(GLFWwindow* window);
+        void Update();
+        void DeInit();
 
     private:
-        int  CreateVulkanInstance();
+        void CreateVulkanInstance();
         void CreateWindowSurface();
         void PickPhysicalDevice();
         void CreateLogicalDevice();
@@ -35,6 +40,7 @@ namespace Engine
         void CreateRenderPass();
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
+        void CreateCommandPool();
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
@@ -57,7 +63,6 @@ namespace Engine
         VkInstance m_VulkanInstance;
         VkSurfaceKHR m_WindowSurface;
         VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
-        //Currently we are using only one
         VkDevice m_Device;
         VkQueue m_GraphicsQueue;
         VkQueue m_PresentQueue;
@@ -67,9 +72,10 @@ namespace Engine
         std::vector<VkImageView> m_SwapChainImageViews;
         VkFormat m_SwapChainImageFormat;
         VkExtent2D m_SwapChainExtent;
-        //END TODO(dcervera)
         std::vector<VkFramebuffer> m_SwapChainFramebuffers;
+        //END TODO(dcervera)
 
+        VkCommandPool commandPool;
         VkPipelineLayout m_PipelineLayout;
         VkRenderPass m_RenderPass;
         VkPipeline m_GraphicsPipeline;

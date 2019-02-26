@@ -1,59 +1,62 @@
 #include "engine.h"
-#include "Graphics/graphicsengine.h"
 #include "utils.h"
 #include <iostream>
 
 namespace Engine
 {  
-    Engine::Engine()
-    {
-        m_GraphicsEngine = new GraphicsEngine();
-    }
+    Engine* EngineSingleton::s_Instance = nullptr;
+
+    Engine::Engine(const std::string& configFileName)
+        : EngineSingleton(this)
+    {}
 
     Engine::~Engine()
     {
-        delete(m_GraphicsEngine);
-        glfwDestroyWindow(window);
+        glfwDestroyWindow(m_Window);
         glfwTerminate();
     }
 
-    int Engine::Init()
+    void Engine::Init()
     {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Slizer Engine - 3D Vulkan Engine", NULL, NULL);
-        if (window == NULL)
+        m_Window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Slizer Engine - 3D Vulkan Engine", NULL, NULL);
+        if (m_Window == NULL)
         {
-            std::cout << "Failed to create GLFW window" << std::endl;
-            return SE_ERROR;
+            throw std::runtime_error("failed to create Window Instance!");
         }
 
-        if (m_GraphicsEngine->Init(window) == SE_ERROR)
-        {
-            return SE_ERROR;
-        }
-        
-        return Update();
+        m_GraphicsEngine.Init(m_Window);
     }
 
-    int Engine::Update()
+    void Engine::Run()
     {
-        int returnValue = SE_CONTINUE;
-        while (!glfwWindowShouldClose(window) && returnValue == SE_CONTINUE)
+        Init();
+        Update();
+        DeInit();
+    }
+
+    void Engine::Update()
+    {
+        while (!glfwWindowShouldClose(m_Window))
         {
-            processInput(window);
+            ProcessInput();
 
             //Graphics update
-            returnValue = m_GraphicsEngine->Update();
+            m_GraphicsEngine.Update();
 
             glfwPollEvents();
         }
-        return returnValue;
     }
 
-    void Engine::processInput(GLFWwindow *window)
+    void Engine::DeInit()
     {
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, true);
+        m_GraphicsEngine.DeInit();
+    }
+
+    void Engine::ProcessInput()
+    {
+        if (glfwGetKey(m_Window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(m_Window, true);
     }
 }

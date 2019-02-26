@@ -1,35 +1,10 @@
-#include <vector>
-#include <fstream>
-#define SE_ERROR -1
-#define SE_CONTINUE 0
+#define SCR_WIDTH 800
+#define SCR_HEIGHT 600
 
-static constexpr unsigned int SCR_WIDTH = 800;
-static constexpr unsigned int SCR_HEIGHT = 600;
 
-const std::vector<const char*> g_DeviceExtensions =
-{
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-
-static std::vector<char> readFile(const std::string& filename) 
-{
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) 
-    {
-        throw std::runtime_error("failed to open file!");
-    }
-
-    size_t fileSize = (size_t)file.tellg();
-    std::vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-
-    return buffer;
-}
+#define NON_COPYABLE_CLASS(C) private: \
+C( const C& ) = delete; \
+C& operator=( const C& ) = delete
 
 #ifdef _DEBUG
 #define DEBUG_EXP(exp)              exp
@@ -40,11 +15,6 @@ static std::vector<char> readFile(const std::string& filename)
 #endif
 #define ASSERT(exp, ...)            if (!(exp)) ASSERT_INVALID()
 #define ASSERT_OR_ALERT(exp, ...)   ([&](){ if (!!(exp)) return (exp); ALERT("ALERT", __VA_ARGS__); exit(-1); })()
-
-const std::vector<const char*> g_ValidationLayers = 
-{
-    "VK_LAYER_LUNARG_standard_validation"
-};
 
 #else
 

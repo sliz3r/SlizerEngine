@@ -41,5 +41,8 @@
     <ClInclude Include="src\Engine\Graphics\graphicsengine.h">
       <Filter>Source Files\Engine\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="src\Engine\fileutils.h">
+      <Filter>Source Files\Engine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

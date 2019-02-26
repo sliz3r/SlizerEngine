@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Engine\engine.h" />
+    <ClInclude Include="src\Engine\fileutils.h" />
     <ClInclude Include="src\Engine\Graphics\graphicsengine.h" />
     <ClInclude Include="src\Engine\utils.h" />
   </ItemGroup>

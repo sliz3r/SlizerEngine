@@ -1,10 +1,11 @@
 #include <iostream>
+#include <memory>
 #include "Engine/engine.h"
 
 int main()
 {
-    static Engine::Engine engine;
-    int returnValue = engine.Init();
-    return returnValue;
+    std::unique_ptr<Engine::Engine> engine = std::make_unique<Engine::Engine>("configPath");
+    engine->Run();
+    return 0;
 }
 
