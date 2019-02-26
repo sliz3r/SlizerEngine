@@ -1,6 +1,5 @@
 struct GLFWwindow;
 #include "Graphics/graphicsengine.h"
-#include <memory>
 #include "utils.h"
 
 namespace Engine
@@ -19,7 +18,7 @@ namespace Engine
 
         ~EngineSingleton() { s_Instance = nullptr; }
 
-        static Engine* Instance() { ASSERT(s_Instance != nullptr); { throw std::runtime_error("The engine instance is nullptr!"); }  return s_Instance; }
+        static Engine* Instance() { ASSERT(s_Instance != nullptr); return s_Instance; }
 
     private:
         static Engine* s_Instance;

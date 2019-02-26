@@ -1,7 +1,6 @@
 #define SCR_WIDTH 800
 #define SCR_HEIGHT 600
 
-
 #define NON_COPYABLE_CLASS(C) private: \
 C( const C& ) = delete; \
 C& operator=( const C& ) = delete
