@@ -115,10 +115,7 @@ namespace Engine
 
     void GraphicsEngine::Init(GLFWwindow* window)
     {
-        if (window == NULL)
-        {
-            throw std::runtime_error("The window that you are sending to the graphics engine is NULL!");
-        }
+        ASSERT(window != nullptr);
 
         m_Window = window;
         CreateVulkanInstance();
@@ -141,6 +138,7 @@ namespace Engine
 
     void GraphicsEngine::DeInit()
     {
+        vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
         for (auto framebuffer : m_SwapChainFramebuffers)
         {
             vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
@@ -167,10 +165,9 @@ namespace Engine
     void GraphicsEngine::CreateVulkanInstance()
     {
 #ifdef _DEBUG
-        if (!CheckValidationLayerSupport()) 
-        {
-            throw std::runtime_error("validation layers requested, but not available!");
-        }
+        bool validationValue;
+        validationValue = CheckValidationLayerSupport();
+        ASSERT(validationValue);
 #endif
         VkApplicationInfo appInfo = {};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -196,31 +193,21 @@ namespace Engine
 #else
         createInfo.enabledLayerCount = 0;
 #endif
-
-        if (vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create Vulkan Instance!");
-        }
-
+        VkResult result = vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance);
+        ASSERT(result == VK_SUCCESS);
     }
 
     void GraphicsEngine::CreateWindowSurface()
     {
-        if (glfwCreateWindowSurface(m_VulkanInstance, m_Window, nullptr, &m_WindowSurface) != VK_SUCCESS) 
-        {
-            throw std::runtime_error("failed to create window surface!");
-        }
+        VkResult result = glfwCreateWindowSurface(m_VulkanInstance, m_Window, nullptr, &m_WindowSurface);
+        ASSERT(result == VK_SUCCESS);
     }
 
     void GraphicsEngine::PickPhysicalDevice()
     {
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, nullptr);
-
-        if (deviceCount == 0)
-        {
-            throw std::runtime_error("failed to find GPUs with Vulkan support!");
-        }
+        ASSERT(deviceCount != 0);
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, devices.data());
@@ -252,17 +239,16 @@ namespace Engine
             }
         }
 
-        if (m_PhysicalDevice == VK_NULL_HANDLE) 
-        {
-            throw std::runtime_error("failed to find a suitable GPU!");
-        }
+        ASSERT(m_PhysicalDevice != VK_NULL_HANDLE);
     }
 
     void GraphicsEngine::CreateLogicalDevice()
     {
-        QueueFamilyIndices  indices = FindQueueFamilies(m_PhysicalDevice);
+        m_QueueFamilyIndices = FindQueueFamilies(m_PhysicalDevice);
+        ASSERT(m_QueueFamilyIndices.graphicsFamily != UINT32_MAX);
+
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily, indices.presentFamily };
+        std::set<uint32_t> uniqueQueueFamilies = { m_QueueFamilyIndices.graphicsFamily, m_QueueFamilyIndices.presentFamily };
 
         float queuePriority = 1.0f;
         for (uint32_t queueFamily : uniqueQueueFamilies) 
@@ -292,13 +278,11 @@ namespace Engine
         createInfo.enabledLayerCount = 0;
 #endif
        
-        if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) 
-        {
-            throw std::runtime_error("failed to create logical device!");
-        }
+        VkResult result = vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device);
+        ASSERT(result == VK_SUCCESS);
 
-        vkGetDeviceQueue(m_Device, indices.graphicsFamily, 0, &m_GraphicsQueue);
-        vkGetDeviceQueue(m_Device, indices.presentFamily, 0, &m_PresentQueue);
+        vkGetDeviceQueue(m_Device, m_QueueFamilyIndices.graphicsFamily, 0, &m_GraphicsQueue);
+        vkGetDeviceQueue(m_Device, m_QueueFamilyIndices.presentFamily, 0, &m_PresentQueue);
     }
 
     void GraphicsEngine::CreateSwapChain()
@@ -326,10 +310,9 @@ namespace Engine
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; /*VK_IMAGE_USAGE_TRANSFER_DST_BIT ->  For postprocessing purposes*/
 
-        QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
-        uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentFamily };
+        uint32_t queueFamilyIndices[] = { m_QueueFamilyIndices.graphicsFamily, m_QueueFamilyIndices.presentFamily };
 
-        if (indices.graphicsFamily != indices.presentFamily) 
+        if (m_QueueFamilyIndices.graphicsFamily != m_QueueFamilyIndices.presentFamily)
         {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
@@ -347,10 +330,8 @@ namespace Engine
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create swap chain!");
-        }
+        VkResult result = vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain);
+        ASSERT(result == VK_SUCCESS);
 
         vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, nullptr);
         m_SwapChainImages.resize(imageCount);
@@ -363,6 +344,7 @@ namespace Engine
     void GraphicsEngine::CreateImageViews()
     {
         m_SwapChainImageViews.resize(m_SwapChainImages.size());
+        VkResult result;
         for (int i = 0; i < m_SwapChainImages.size() ; ++i)
         {
             VkImageViewCreateInfo createInfo = {};
@@ -382,11 +364,8 @@ namespace Engine
             createInfo.subresourceRange.levelCount = 1;
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
-
-            if (vkCreateImageView(m_Device, &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create image views!");
-            }
+            result = vkCreateImageView(m_Device, &createInfo, nullptr, &m_SwapChainImageViews[i]);
+            ASSERT(result == VK_SUCCESS);
         }
     }
 
@@ -418,10 +397,8 @@ namespace Engine
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        if (vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) 
-        {
-            throw std::runtime_error("failed to create render pass!");
-        }
+        VkResult result = vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass);
+        ASSERT(result == VK_SUCCESS);
     }
 
     void GraphicsEngine::CreateGraphicsPipeline()
@@ -429,6 +406,8 @@ namespace Engine
         //Shader creation
         auto vertexShaderCode = readFile("src/Shaders/vert.spv");
         auto fragmentShaderCode = readFile("src/Shaders/frag.spv");
+
+        ASSERT(!vertexShaderCode.empty() || !fragmentShaderCode.empty());
 
         VkShaderModule vertexShaderModule = CreateShaderModule(vertexShaderCode);
         VkShaderModule fragmentShaderModule = CreateShaderModule(fragmentShaderCode);
@@ -545,10 +524,8 @@ namespace Engine
         pipelineLayoutInfo.setLayoutCount = 0;
         pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-        if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create pipeline layout!");
-        };
+        VkResult result = vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout);
+        ASSERT(result == VK_SUCCESS);
 
         VkGraphicsPipelineCreateInfo pipelineInfo = {};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -571,10 +548,8 @@ namespace Engine
         pipelineInfo.basePipelineIndex = -1;
         //
 
-        if (vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) != VK_SUCCESS) 
-        {
-            throw std::runtime_error("failed to create graphics pipeline!");
-        }
+        result = vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline);
+        ASSERT(result == VK_SUCCESS);
 
         vkDestroyShaderModule(m_Device, vertexShaderModule, nullptr);
         vkDestroyShaderModule(m_Device, fragmentShaderModule, nullptr);
@@ -583,6 +558,7 @@ namespace Engine
     void GraphicsEngine::CreateFramebuffers()
     {
         m_SwapChainFramebuffers.resize(m_SwapChainImageViews.size());
+        VkResult result;
 
         for (size_t i = 0; i < m_SwapChainImageViews.size(); ++i)
         {
@@ -596,17 +572,22 @@ namespace Engine
             frameBufferInfo.width = m_SwapChainExtent.width;
             frameBufferInfo.height = m_SwapChainExtent.height;
             frameBufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(m_Device, &frameBufferInfo, nullptr, &m_SwapChainFramebuffers[i]) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create framebuffer!");
-            }
+            result = vkCreateFramebuffer(m_Device, &frameBufferInfo, nullptr, &m_SwapChainFramebuffers[i]);
+            ASSERT(result == VK_SUCCESS);
         }
     }
 
     void GraphicsEngine::CreateCommandPool()
     {
+        ASSERT(m_QueueFamilyIndices.graphicsFamily != UINT32_MAX);
 
+        VkCommandPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.queueFamilyIndex = m_QueueFamilyIndices.graphicsFamily;
+        poolInfo.flags = 0;
+
+        VkResult result = vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool);
+        ASSERT(result == VK_SUCCESS);
     }
 
     bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const
@@ -712,10 +693,8 @@ namespace Engine
         createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
 
         VkShaderModule shaderModule;
-        if (vkCreateShaderModule(m_Device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create shader module!");
-        }
+        VkResult result = vkCreateShaderModule(m_Device, &createInfo, nullptr, &shaderModule);
+        ASSERT(result == VK_SUCCESS);
 
         return shaderModule;
     }
@@ -747,10 +726,8 @@ namespace Engine
         createInfo.pfnUserCallback = DebugCallback;
         createInfo.pUserData = nullptr;
 
-        if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to set up debug messenger!");
-        }
+        VkResult result = CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &m_DebugMessenger);
+        ASSERT(result == VK_SUCCESS);
     }
 
     VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT * pCallbackData, void * pUserData)

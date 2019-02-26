@@ -1,3 +1,4 @@
+#include <iostream>
 #define SCR_WIDTH 800
 #define SCR_HEIGHT 600
 
@@ -16,7 +17,6 @@ C& operator=( const C& ) = delete
 #define ASSERT_OR_ALERT(exp, ...)   ([&](){ if (!!(exp)) return (exp); ALERT("ALERT", __VA_ARGS__); exit(-1); })()
 
 #else
-
 #define OUTPUT_MSG(...)             void(0)
 #define LOG_ERROR(tag, ...)         void(0)
 #define LOG_WARNING(tag, ...)       void(0)

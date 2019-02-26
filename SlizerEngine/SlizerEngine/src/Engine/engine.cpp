@@ -20,10 +20,7 @@ namespace Engine
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         m_Window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Slizer Engine - 3D Vulkan Engine", NULL, NULL);
-        if (m_Window == NULL)
-        {
-            throw std::runtime_error("failed to create Window Instance!");
-        }
+        ASSERT(m_Window != nullptr);
 
         m_GraphicsEngine.Init(m_Window);
     }

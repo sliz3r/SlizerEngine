@@ -74,7 +74,8 @@ namespace Engine
         std::vector<VkFramebuffer> m_SwapChainFramebuffers;
         //END TODO(dcervera)
 
-        VkCommandPool commandPool;
+        QueueFamilyIndices m_QueueFamilyIndices;
+        VkCommandPool m_CommandPool;
         VkPipelineLayout m_PipelineLayout;
         VkRenderPass m_RenderPass;
         VkPipeline m_GraphicsPipeline;
