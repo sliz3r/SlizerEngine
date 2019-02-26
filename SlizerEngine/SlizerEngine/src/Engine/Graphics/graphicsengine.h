@@ -40,6 +40,7 @@ namespace Engine
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
         void CreateCommandPool();
+        void CreateCommandBuffers();
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
@@ -76,6 +77,7 @@ namespace Engine
 
         QueueFamilyIndices m_QueueFamilyIndices;
         VkCommandPool m_CommandPool;
+        std::vector<VkCommandBuffer> m_CommandBuffers;
         VkPipelineLayout m_PipelineLayout;
         VkRenderPass m_RenderPass;
         VkPipeline m_GraphicsPipeline;

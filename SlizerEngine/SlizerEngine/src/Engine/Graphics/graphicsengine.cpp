@@ -14,7 +14,7 @@ static const std::vector<const char*> g_ValidationLayers =
 {
     "VK_LAYER_LUNARG_standard_validation"
 };
-//
+//END TODO(dcervera)
 
 //TODO(dcervera):Wrap VkSwapchainKHR && std::vector<VkImage> in order to have all SwapChain functionality in a single class 
 struct SwapChainSupportDetails
@@ -131,6 +131,7 @@ namespace Engine
         CreateGraphicsPipeline();
         CreateFramebuffers();
         CreateCommandPool();
+        CreateCommandBuffers();
     }
 
     void GraphicsEngine::Update()
@@ -538,7 +539,7 @@ namespace Engine
         pipelineInfo.pMultisampleState = &multisampling;
         /*pipelineInfo.pDepthStencilState = nullptr; */
         pipelineInfo.pColorBlendState = &colorBlending;
-        pipelineInfo.pDynamicState = &dynamicState;
+        //pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = m_PipelineLayout;
         pipelineInfo.renderPass = m_RenderPass;
         pipelineInfo.subpass = 0;
@@ -588,6 +589,49 @@ namespace Engine
 
         VkResult result = vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool);
         ASSERT(result == VK_SUCCESS);
+    }
+
+    void GraphicsEngine::CreateCommandBuffers()
+    {
+        m_CommandBuffers.resize(m_SwapChainFramebuffers.size());
+
+        VkCommandBufferAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = m_CommandPool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = (uint32_t)m_CommandBuffers.size();
+
+        VkResult result = vkAllocateCommandBuffers(m_Device, &allocInfo, m_CommandBuffers.data());
+        ASSERT(result == VK_SUCCESS);
+
+        for (size_t i = 0; i < m_CommandBuffers.size(); i++) 
+        {
+            VkCommandBufferBeginInfo beginInfo = {};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+            result = vkBeginCommandBuffer(m_CommandBuffers[i], &beginInfo);
+            ASSERT(result == VK_SUCCESS);
+
+            VkRenderPassBeginInfo renderPassInfo = {};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            renderPassInfo.renderPass = m_RenderPass;
+            renderPassInfo.framebuffer = m_SwapChainFramebuffers[i];
+            renderPassInfo.renderArea.offset = { 0, 0 };
+            renderPassInfo.renderArea.extent = m_SwapChainExtent;
+
+            VkClearValue clearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+            renderPassInfo.clearValueCount = 1;
+            renderPassInfo.pClearValues = &clearColor;
+
+            vkCmdBeginRenderPass(m_CommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+            vkCmdDraw(m_CommandBuffers[i], 3, 1, 0, 0);
+            vkCmdEndRenderPass(m_CommandBuffers[i]);
+
+            result = vkEndCommandBuffer(m_CommandBuffers[i]);
+            ASSERT(result == VK_SUCCESS);
+        }
     }
 
     bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const
@@ -733,7 +777,7 @@ namespace Engine
     VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT * pCallbackData, void * pUserData)
     {
         std::cerr << "validation layer: " << pCallbackData->pMessage << ". Severity: " << messageSeverity << std::endl;
-        ASSERT(messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
+        ASSERT(messageSeverity !=  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT && messageSeverity != VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);
         return VK_FALSE;
     }
 
