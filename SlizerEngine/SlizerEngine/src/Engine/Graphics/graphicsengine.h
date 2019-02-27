@@ -27,7 +27,7 @@ namespace Engine
 
         void Init(GLFWwindow* window);
         void Update();
-        void DeInit();
+        void Shutdown();
 
     private:
         void CreateVulkanInstance();

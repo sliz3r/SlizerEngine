@@ -140,7 +140,7 @@ namespace Engine
         Draw();
     }
 
-    void GraphicsEngine::DeInit()
+    void GraphicsEngine::Shutdown()
     {
         vkDeviceWaitIdle(m_Device);
 

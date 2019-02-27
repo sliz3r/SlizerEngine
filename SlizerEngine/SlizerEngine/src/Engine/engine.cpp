@@ -26,7 +26,7 @@ namespace Engine
     {
         Init();
         Update();
-        DeInit();
+        Shutdown();
     }
 
     void Engine::Update()
@@ -41,9 +41,9 @@ namespace Engine
         }
     }
 
-    void Engine::DeInit()
+    void Engine::Shutdown()
     {
-        m_GraphicsEngine.DeInit();
+        m_GraphicsEngine.Shutdown();
         glfwDestroyWindow(m_Window);
         glfwTerminate();
     }

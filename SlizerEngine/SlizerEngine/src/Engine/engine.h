@@ -37,7 +37,7 @@ namespace Engine
         void ProcessInput();
         void Init();
         void Update();
-        void DeInit();
+        void Shutdown();
 
     private:
         GraphicsEngine m_GraphicsEngine;
