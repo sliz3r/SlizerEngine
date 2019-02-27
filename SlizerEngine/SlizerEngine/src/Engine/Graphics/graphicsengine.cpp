@@ -110,11 +110,11 @@ struct SwapChainSupportDetails
 
 namespace Engine
 {
-    GraphicsEngine::~GraphicsEngine()
-    {}
+    GraphicsEngine::~GraphicsEngine() {}
 
     void GraphicsEngine::Init(GLFWwindow* window)
     {
+        m_CurrentFrame = 0;
         ASSERT(window != nullptr);
 
         m_Window = window;
@@ -132,13 +132,25 @@ namespace Engine
         CreateFramebuffers();
         CreateCommandPool();
         CreateCommandBuffers();
+        CreateSyncObjects();
     }
 
     void GraphicsEngine::Update()
-    {}
+    {
+        Draw();
+    }
 
     void GraphicsEngine::DeInit()
     {
+        vkDeviceWaitIdle(m_Device);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+        {
+            vkDestroySemaphore(m_Device, m_RenderFinishedSemaphores[i], nullptr);
+            vkDestroySemaphore(m_Device, m_ImageAvailableSemaphores[i], nullptr);
+            vkDestroyFence(m_Device, m_InFlightFences[i], nullptr);
+        }
+
         vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
         for (auto framebuffer : m_SwapChainFramebuffers)
         {
@@ -398,6 +410,17 @@ namespace Engine
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
+        //Subpass to sync properly
+        VkSubpassDependency dependency = {};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
         VkResult result = vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass);
         ASSERT(result == VK_SUCCESS);
     }
@@ -632,6 +655,71 @@ namespace Engine
             result = vkEndCommandBuffer(m_CommandBuffers[i]);
             ASSERT(result == VK_SUCCESS);
         }
+    }
+
+    void GraphicsEngine::CreateSyncObjects()
+    {
+        m_ImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        m_RenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        m_InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+        VkSemaphoreCreateInfo semaphoreInfo = {};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkFenceCreateInfo fenceInfo = {};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT; //We use this flag to set the fences signaled to avoid problems
+
+        VkResult S1, S2, F1;
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+        {
+            S1 = vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]);
+            S2 = vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphores[i]);
+            F1 = vkCreateFence(m_Device, &fenceInfo, nullptr, &m_InFlightFences[i]);
+            ASSERT(S1 == VK_SUCCESS && S2 == VK_SUCCESS && F1 == VK_SUCCESS);
+        }
+    }
+
+    void GraphicsEngine::Draw()
+    {
+        //GPU-CPU sync
+        vkWaitForFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
+        vkResetFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame]);
+
+        uint32_t imageIndex;
+        vkAcquireNextImageKHR(m_Device, m_SwapChain, std::numeric_limits<uint64_t>::max(), m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIndex);
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+        VkSemaphore waitSemaphores[] = { m_ImageAvailableSemaphores[m_CurrentFrame] };
+        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_CommandBuffers[imageIndex];
+
+        VkSemaphore signalSemaphores[] = { m_RenderFinishedSemaphores[m_CurrentFrame] };
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        VkResult result = vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]);
+        ASSERT(result == VK_SUCCESS);
+
+        VkPresentInfoKHR presentInfo = {};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
+
+        VkSwapchainKHR swapChains[] = { m_SwapChain };
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = swapChains;
+        presentInfo.pImageIndices = &imageIndex;
+        vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+
+        m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
     bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const

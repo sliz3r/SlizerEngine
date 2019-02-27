@@ -10,10 +10,7 @@ namespace Engine
     {}
 
     Engine::~Engine()
-    {
-        glfwDestroyWindow(m_Window);
-        glfwTerminate();
-    }
+    {}
 
     void Engine::Init()
     {
@@ -37,17 +34,18 @@ namespace Engine
         while (!glfwWindowShouldClose(m_Window))
         {
             ProcessInput();
+            glfwPollEvents();
 
             //Graphics update
             m_GraphicsEngine.Update();
-
-            glfwPollEvents();
         }
     }
 
     void Engine::DeInit()
     {
         m_GraphicsEngine.DeInit();
+        glfwDestroyWindow(m_Window);
+        glfwTerminate();
     }
 
     void Engine::ProcessInput()

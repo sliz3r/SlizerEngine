@@ -41,6 +41,8 @@ namespace Engine
         void CreateFramebuffers();
         void CreateCommandPool();
         void CreateCommandBuffers();
+        void CreateSyncObjects();
+        void Draw();
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
@@ -59,6 +61,7 @@ namespace Engine
 
     private:
 
+        size_t m_CurrentFrame;
         GLFWwindow* m_Window;
         VkInstance m_VulkanInstance;
         VkSurfaceKHR m_WindowSurface;
@@ -81,6 +84,10 @@ namespace Engine
         VkPipelineLayout m_PipelineLayout;
         VkRenderPass m_RenderPass;
         VkPipeline m_GraphicsPipeline;
+        const int MAX_FRAMES_IN_FLIGHT = 2;
+        std::vector<VkSemaphore> m_ImageAvailableSemaphores;
+        std::vector<VkSemaphore> m_RenderFinishedSemaphores;
+        std::vector<VkFence> m_InFlightFences;
 
 #ifdef _DEBUG
         VkDebugUtilsMessengerEXT m_DebugMessenger;
