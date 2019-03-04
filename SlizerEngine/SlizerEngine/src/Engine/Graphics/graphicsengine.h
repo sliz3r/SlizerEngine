@@ -35,6 +35,8 @@ namespace Engine
         void PickPhysicalDevice();
         void CreateLogicalDevice();
         void CreateSwapChain();
+        void RecreateSwapChain();
+        void CleanupSwapChain();
         void CreateImageViews();
         void CreateRenderPass();
         void CreateGraphicsPipeline();
@@ -48,7 +50,7 @@ namespace Engine
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
         bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
         VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode);
-
+        static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
 #ifdef _DEBUG
         bool CheckValidationLayerSupport() const;
         void SetupDebugMessenger();
@@ -62,6 +64,7 @@ namespace Engine
     private:
 
         size_t m_CurrentFrame;
+        bool m_FramebufferResized;
         GLFWwindow* m_Window;
         VkInstance m_VulkanInstance;
         VkSurfaceKHR m_WindowSurface;
