@@ -141,6 +141,7 @@ namespace Engine
         CreateGraphicsPipeline();
         CreateFramebuffers();
         CreateCommandPool();
+        CreateVertexBuffer();
         CreateCommandBuffers();
         CreateSyncObjects();
     }
@@ -154,6 +155,8 @@ namespace Engine
     {
         vkDeviceWaitIdle(m_Device);
         CleanupSwapChain();
+        vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
+        vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
         {
@@ -492,10 +495,13 @@ namespace Engine
         //Vertex Input setup
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr; 
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
         //
 
         //Assembly Input setup
@@ -652,6 +658,40 @@ namespace Engine
         ASSERT(result == VK_SUCCESS);
     }
 
+    void GraphicsEngine::CreateVertexBuffer()
+    {
+        VkBufferCreateInfo bufferInfo = {};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VkResult result = vkCreateBuffer(m_Device, &bufferInfo, nullptr, &m_VertexBuffer);
+        
+        ASSERT(result == VK_SUCCESS);
+
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(m_Device, m_VertexBuffer, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+
+        uint32_t memoryType = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        ASSERT(memoryType != UINT32_MAX);
+
+        allocInfo.memoryTypeIndex = memoryType;
+        result = vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_VertexBufferMemory);
+        ASSERT(result == VK_SUCCESS);
+
+        vkBindBufferMemory(m_Device, m_VertexBuffer, m_VertexBufferMemory, 0);
+
+        void* data;
+        vkMapMemory(m_Device, m_VertexBufferMemory, 0, bufferInfo.size, 0, &data);
+        memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+        vkUnmapMemory(m_Device, m_VertexBufferMemory);
+    }
+
     void GraphicsEngine::CreateCommandBuffers()
     {
         m_CommandBuffers.resize(m_SwapChainFramebuffers.size());
@@ -687,7 +727,12 @@ namespace Engine
 
             vkCmdBeginRenderPass(m_CommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
             vkCmdBindPipeline(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
-            vkCmdDraw(m_CommandBuffers[i], 3, 1, 0, 0);
+
+            VkBuffer vertexBuffers[] = { m_VertexBuffer };
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+            vkCmdDraw(m_CommandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
             vkCmdEndRenderPass(m_CommandBuffers[i]);
 
             result = vkEndCommandBuffer(m_CommandBuffers[i]);
@@ -960,5 +1005,21 @@ namespace Engine
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);    
 #endif
         return extensions;
+    }
+
+    uint32_t GraphicsEngine::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+        {
+            if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                return i;
+            }
+        }
+
+        return UINT32_MAX;
     }
 }
