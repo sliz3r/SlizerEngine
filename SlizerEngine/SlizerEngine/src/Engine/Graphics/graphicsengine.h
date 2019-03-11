@@ -78,6 +78,7 @@ namespace Engine
         void CreateFramebuffers();
         void CreateCommandPool();
         void CreateVertexBuffer();
+        void CreateIndexBuffer();
         void CreateCommandBuffers();
         void CreateSyncObjects();
         void Draw();
@@ -97,6 +98,8 @@ namespace Engine
 #endif
         std::vector<const char*> GetRequiredExtensions() const;
         uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+        void CreateBuffer(VkDeviceSize  size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+        void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     private:
 
@@ -130,11 +133,18 @@ namespace Engine
         std::vector<VkFence> m_InFlightFences;
         VkBuffer m_VertexBuffer;
         VkDeviceMemory m_VertexBufferMemory;
+        VkBuffer m_IndexBuffer;
+        VkDeviceMemory m_IndexBufferMemory;
 
         const std::vector<Vertex> vertices = {
-            { { 0.0f, -0.5f },{ 1.0f, 1.0f, 1.0f } },
-            { { 0.5f, 0.5f },{ 0.0f, 1.0f, 0.0f } },
-            { { -0.5f, 0.5f },{ 0.0f, 0.0f, 1.0f } }
+            { { -0.5f, -0.5f },{ 1.0f, 0.0f, 0.0f } },
+            { { 0.5f, -0.5f },{ 0.0f, 1.0f, 0.0f } },
+            { { 0.5f, 0.5f },{ 0.0f, 0.0f, 1.0f } },
+            { { -0.5f, 0.5f },{ 1.0f, 1.0f, 1.0f } }
+        };
+
+        const std::vector<uint16_t> indices = {
+            0, 1, 2, 2, 3, 0
         };
 
 #ifdef _DEBUG
