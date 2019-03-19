@@ -24,7 +24,7 @@ namespace Engine
         glm::vec3 color;
         glm::vec2 texCoord;
 
-        static VkVertexInputBindingDescription getBindingDescription() {
+        static VkVertexInputBindingDescription GetBindingDescription() {
             VkVertexInputBindingDescription bindingDescription = {};
             bindingDescription.binding = 0;
             bindingDescription.stride = sizeof(Vertex);
@@ -33,7 +33,7 @@ namespace Engine
             return bindingDescription;
         }
 
-        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+        static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions() {
             std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions = {};
 
             attributeDescriptions[0].binding = 0;
