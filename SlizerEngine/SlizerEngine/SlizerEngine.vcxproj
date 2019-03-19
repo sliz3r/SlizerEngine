@@ -111,7 +111,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Libraries\glfw-3.2.1.bin.WIN64\include;$(ProjectDir)..\..\Libraries\Vulkan\Include;$(ProjectDir)..\..\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Libraries\glfw-3.2.1.bin.WIN64\include;$(ProjectDir)..\..\Libraries\Vulkan\Include;$(ProjectDir)..\..\Libraries\stb-master;$(ProjectDir)..\..\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>glfw3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -141,7 +141,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Libraries\glfw-3.2.1.bin.WIN64\include;$(ProjectDir)..\..\Libraries\Vulkan\Include;$(ProjectDir)..\..\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Libraries\glfw-3.2.1.bin.WIN64\include;$(ProjectDir)..\..\Libraries\Vulkan\Include;$(ProjectDir)..\..\Libraries\stb-master;$(ProjectDir)..\..\Libraries\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
