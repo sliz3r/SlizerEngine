@@ -74,14 +74,19 @@ namespace Engine
         void CleanupSwapChain();
         void CreateImageViews();
         void CreateRenderPass();
+        void CreateDescriptorSetLayout();
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
         void CreateCommandPool();
         void CreateVertexBuffer();
         void CreateIndexBuffer();
+        void CreateUniformBuffers();
+        void CreateDescriptorPool();
+        void CreateDescriptorSets();
         void CreateCommandBuffers();
         void CreateSyncObjects();
         void Draw();
+        void UpdateUniformBuffer(uint32_t currentImage);
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
@@ -124,6 +129,7 @@ namespace Engine
         QueueFamilyIndices m_QueueFamilyIndices;
         VkCommandPool m_CommandPool;
         std::vector<VkCommandBuffer> m_CommandBuffers;
+        VkDescriptorSetLayout m_DescriptorSetLayout;
         VkPipelineLayout m_PipelineLayout;
         VkRenderPass m_RenderPass;
         VkPipeline m_GraphicsPipeline;
@@ -133,17 +139,25 @@ namespace Engine
         std::vector<VkFence> m_InFlightFences;
         VkBuffer m_VertexBuffer;
         VkDeviceMemory m_VertexBufferMemory;
+
         VkBuffer m_IndexBuffer;
         VkDeviceMemory m_IndexBufferMemory;
+        std::vector<VkBuffer> m_UniformBuffers;
+        std::vector<VkDeviceMemory> m_UniformBuffersMemory;
 
-        const std::vector<Vertex> vertices = {
+        VkDescriptorPool m_DescriptorPool;
+        std::vector<VkDescriptorSet> m_DescriptorSets;
+
+        const std::vector<Vertex> vertices = 
+        {
             { { -0.5f, -0.5f },{ 1.0f, 0.0f, 0.0f } },
             { { 0.5f, -0.5f },{ 0.0f, 1.0f, 0.0f } },
             { { 0.5f, 0.5f },{ 0.0f, 0.0f, 1.0f } },
             { { -0.5f, 0.5f },{ 1.0f, 1.0f, 1.0f } }
         };
 
-        const std::vector<uint16_t> indices = {
+        const std::vector<uint16_t> indices = 
+        {
             0, 1, 2, 2, 3, 0
         };
 

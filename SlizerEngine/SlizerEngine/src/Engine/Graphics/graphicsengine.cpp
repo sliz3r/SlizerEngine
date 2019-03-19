@@ -3,8 +3,19 @@
 #include <set>
 #include <algorithm>
 #include "Engine/fileutils.h"
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 
 //TODO(dcervera) find a proper place for this
+struct UniformBufferObject
+{
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
+
 static const std::vector<const char*> g_DeviceExtensions =
 {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -138,11 +149,15 @@ namespace Engine
         CreateSwapChain();
         CreateImageViews();
         CreateRenderPass();
+        CreateDescriptorSetLayout();
         CreateGraphicsPipeline();
         CreateFramebuffers();
         CreateCommandPool();
         CreateVertexBuffer();
         CreateIndexBuffer();
+        CreateUniformBuffers();
+        CreateDescriptorPool();
+        CreateDescriptorSets();
         CreateCommandBuffers();
         CreateSyncObjects();
     }
@@ -156,6 +171,15 @@ namespace Engine
     {
         vkDeviceWaitIdle(m_Device);
         CleanupSwapChain();
+
+        vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
+        vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
+
+        for (size_t i = 0; i < m_SwapChainImages.size(); ++i) 
+        {
+            vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
+            vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
+        }
 
         vkDestroyBuffer(m_Device, m_IndexBuffer, nullptr);
         vkFreeMemory(m_Device, m_IndexBufferMemory, nullptr);
@@ -471,6 +495,24 @@ namespace Engine
         ASSERT(result == VK_SUCCESS);
     }
 
+    void GraphicsEngine::CreateDescriptorSetLayout()
+    {
+        VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+        uboLayoutBinding.binding = 0;
+        uboLayoutBinding.descriptorCount = 1;
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.pImmutableSamplers = nullptr;
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &uboLayoutBinding;
+
+        VkResult result = vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &m_DescriptorSetLayout);
+        ASSERT(result == VK_SUCCESS);
+    }
+
     void GraphicsEngine::CreateGraphicsPipeline()
     {
         //Shader creation
@@ -545,7 +587,7 @@ namespace Engine
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
         //
 
@@ -594,27 +636,27 @@ namespace Engine
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0;
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
 
         VkResult result = vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout);
         ASSERT(result == VK_SUCCESS);
 
         VkGraphicsPipelineCreateInfo pipelineInfo = {};
-        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.stageCount = 2;
-        pipelineInfo.pStages = shaderStages;
-        pipelineInfo.pVertexInputState = &vertexInputInfo;
-        pipelineInfo.pInputAssemblyState = &inputAssembly;
-        pipelineInfo.pViewportState = &viewportState;
-        pipelineInfo.pRasterizationState = &rasterizer;
-        pipelineInfo.pMultisampleState = &multisampling;
-        /*pipelineInfo.pDepthStencilState = nullptr; */
-        pipelineInfo.pColorBlendState = &colorBlending;
-        //pipelineInfo.pDynamicState = &dynamicState;
-        pipelineInfo.layout = m_PipelineLayout;
-        pipelineInfo.renderPass = m_RenderPass;
-        pipelineInfo.subpass = 0;
+        pipelineInfo.sType                        = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount                   = 2;
+        pipelineInfo.pStages                      = shaderStages;
+        pipelineInfo.pVertexInputState            = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState          = &inputAssembly;
+        pipelineInfo.pViewportState               = &viewportState;
+        pipelineInfo.pRasterizationState          = &rasterizer;
+        pipelineInfo.pMultisampleState            = &multisampling;
+        /*pipelineInfo.pDepthStencilState         = nullptr; */
+        pipelineInfo.pColorBlendState             = &colorBlending;
+        //pipelineInfo.pDynamicState              = &dynamicState;
+        pipelineInfo.layout                       = m_PipelineLayout;
+        pipelineInfo.renderPass                   = m_RenderPass;
+        pipelineInfo.subpass                      = 0;
 
         //This can be used to derivate other pipelines and ease the way to create other ones with things in common 
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -701,6 +743,71 @@ namespace Engine
         vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
     }
 
+    void GraphicsEngine::CreateUniformBuffers()
+    {
+        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+        const size_t swapChainImagesSize = m_SwapChainImages.size();
+        m_UniformBuffers.resize(swapChainImagesSize);
+        m_UniformBuffersMemory.resize(swapChainImagesSize);
+
+        for (size_t i = 0; i < swapChainImagesSize; i++)
+        {
+            CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_UniformBuffers[i], m_UniformBuffersMemory[i]);
+        }
+    }
+
+    void GraphicsEngine::CreateDescriptorPool()
+    {
+        size_t swapChainImagesSize = m_SwapChainImages.size();
+        VkDescriptorPoolSize poolSize = {};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = static_cast<uint32_t>(swapChainImagesSize);
+
+        VkDescriptorPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = static_cast<uint32_t>(swapChainImagesSize);
+
+        VkResult result = vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool);
+        ASSERT(result == VK_SUCCESS);
+    }
+
+    void GraphicsEngine::CreateDescriptorSets()
+    {
+        const size_t swapChainImagesSize = m_SwapChainImages.size();
+        std::vector<VkDescriptorSetLayout> layouts(swapChainImagesSize, m_DescriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_DescriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(swapChainImagesSize);
+        allocInfo.pSetLayouts = layouts.data();
+
+        m_DescriptorSets.resize(swapChainImagesSize);
+        VkResult result = vkAllocateDescriptorSets(m_Device, &allocInfo, m_DescriptorSets.data());
+        ASSERT(result == VK_SUCCESS);
+
+        for (size_t i = 0; i < swapChainImagesSize; i++)
+        {
+            VkDescriptorBufferInfo bufferInfo = {};
+            bufferInfo.buffer = m_UniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformBufferObject);
+
+            VkWriteDescriptorSet descriptorWrite = {};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = m_DescriptorSets[i];
+            descriptorWrite.dstBinding = 0;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+
+            vkUpdateDescriptorSets(m_Device, 1, &descriptorWrite, 0, nullptr);
+        }
+    }
+
     void GraphicsEngine::CreateCommandBuffers()
     {
         m_CommandBuffers.resize(m_SwapChainFramebuffers.size());
@@ -741,7 +848,7 @@ namespace Engine
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(m_CommandBuffers[i], m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
+            vkCmdBindDescriptorSets(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0, 1, &m_DescriptorSets[i], 0, nullptr);
             vkCmdDrawIndexed(m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
             vkCmdEndRenderPass(m_CommandBuffers[i]);
 
@@ -786,6 +893,8 @@ namespace Engine
 
         ASSERT(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR);
 
+        UpdateUniformBuffer(imageIndex);
+
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -826,6 +935,25 @@ namespace Engine
         ASSERT(result == VK_SUCCESS);
 
         m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    void GraphicsEngine::UpdateUniformBuffer(uint32_t currentImage)
+    {
+        static auto startTime = std::chrono::high_resolution_clock::now();
+
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+        UniformBufferObject ubo = {};
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapChainExtent.width / (float)m_SwapChainExtent.height, 0.1f, 10.0f);
+        ubo.proj[1][1] *= -1;
+
+        void* data;
+        vkMapMemory(m_Device, m_UniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vkUnmapMemory(m_Device, m_UniformBuffersMemory[currentImage]);
     }
 
     bool GraphicsEngine::IsDeviceSuitable(VkPhysicalDevice device) const
