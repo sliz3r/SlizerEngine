@@ -24,6 +24,11 @@ namespace Engine
         glm::vec3 color;
         glm::vec2 texCoord;
 
+        bool operator==(const Vertex& other) const 
+        {
+            return position == other.position && color == other.color && texCoord == other.texCoord;
+        }
+
         static VkVertexInputBindingDescription GetBindingDescription() {
             VkVertexInputBindingDescription bindingDescription = {};
             bindingDescription.binding = 0;
@@ -94,6 +99,7 @@ namespace Engine
         void CreateCommandBuffers();
         void CreateSyncObjects();
         void Draw();
+        void LoadModel();
         void UpdateUniformBuffer(uint32_t currentImage);
         bool IsDeviceSuitable(VkPhysicalDevice device) const;
         int  RateDeviceSuitability(VkPhysicalDevice device, bool needToCheckForVR) const;
@@ -161,24 +167,8 @@ namespace Engine
         VkBuffer m_IndexBuffer;
         VkDeviceMemory m_IndexBufferMemory;
 
-        const std::vector<Vertex> vertices = 
-        {
-            { { -0.5f, -0.5f, 0.0f },{ 1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f } },
-            { { 0.5f, -0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f },{ 1.0f, 0.0f } },
-            { { 0.5f, 0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f } },
-            { { -0.5f, 0.5f, 0.0f },{ 1.0f, 1.0f, 1.0f },{ 0.0f, 1.0f } },
-
-            { { -0.5f, -0.5f, -0.5f },{ 1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f } },
-            { { 0.5f, -0.5f, -0.5f },{ 0.0f, 1.0f, 0.0f },{ 1.0f, 0.0f } },
-            { { 0.5f, 0.5f, -0.5f },{ 0.0f, 0.0f, 1.0f },{ 1.0f, 1.0f } },
-            { { -0.5f, 0.5f, -0.5f },{ 1.0f, 1.0f, 1.0f },{ 0.0f, 1.0f } }
-        };
-
-        const std::vector<uint16_t> indices = 
-        {
-            0, 1, 2, 2, 3, 0,
-            4, 5, 6, 6, 7, 4
-        };
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
         //
 
         // Vertex transforms

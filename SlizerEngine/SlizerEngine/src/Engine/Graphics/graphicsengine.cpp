@@ -5,13 +5,30 @@
 #include "Engine/fileutils.h"
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+#include <unordered_map>
 
 //TODO(dcervera) find a proper place for this
+namespace std
+{
+    template<> struct hash<Engine::Vertex> 
+    {
+        size_t operator()(Engine::Vertex const& vertex) const 
+        {
+            return ((hash<glm::vec3>()(vertex.position) ^
+                (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+                (hash<glm::vec2>()(vertex.texCoord) << 1);
+        }
+    };
+}
+
 struct UniformBufferObject
 {
     alignas(16) glm::mat4 model;
@@ -28,6 +45,10 @@ static const std::vector<const char*> g_ValidationLayers =
 {
     "VK_LAYER_LUNARG_standard_validation"
 };
+
+const std::string MODEL_PATH = "src/models/chalet.obj";
+const std::string TEXTURE_PATH = "src/textures/chalet.jpg";
+
 //END TODO(dcervera)
 
 //TODO(dcervera):Wrap VkSwapchainKHR && std::vector<VkImage> in order to have all SwapChain functionality in a single class 
@@ -160,6 +181,7 @@ namespace Engine
         CreateTextureImage();
         CreateTextureImageView();
         CreateTextureSampler();
+        LoadModel();
         CreateVertexBuffer();
         CreateIndexBuffer();
         CreateUniformBuffers();
@@ -279,10 +301,7 @@ namespace Engine
         {
             m_PhysicalDevice = candidates.rbegin()->second;
         }
-        else 
-        {
-            throw std::runtime_error("failed to find a suitable GPU!");
-        }*/
+        */
 
         for (const auto& device : devices) 
         {
@@ -469,6 +488,7 @@ namespace Engine
 
         VkAttachmentDescription depthAttachment = {};
         depthAttachment.format = FindDepthFormat();
+        ASSERT(depthAttachment.format != VK_FORMAT_UNDEFINED);
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -750,7 +770,7 @@ namespace Engine
     void GraphicsEngine::CreateTextureImage()
     {
         int texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load("src/Textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         ASSERT(pixels != nullptr);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
         VkBuffer stagingBuffer;
@@ -956,7 +976,7 @@ namespace Engine
             VkBuffer vertexBuffers[] = { m_VertexBuffer };
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(m_CommandBuffers[i], m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(m_CommandBuffers[i], m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0, 1, &m_DescriptorSets[i], 0, nullptr);
             vkCmdDrawIndexed(m_CommandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
             vkCmdEndRenderPass(m_CommandBuffers[i]);
@@ -1046,6 +1066,57 @@ namespace Engine
         m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
+    void GraphicsEngine::LoadModel()
+    {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warning, error;
+        bool success = tinyobj::LoadObj(&attrib, &shapes, &materials, &warning, &error, MODEL_PATH.c_str());
+        std::cout << "Loading model: " << MODEL_PATH.c_str() << "\nErrors: " << error << "\n" << "Warnings: " << warning << "\n";
+        ASSERT(success);
+
+        std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
+
+        for (const auto& shape : shapes)
+        {
+            for (const auto& index : shape.mesh.indices)
+            {
+                Vertex vertex = {};
+
+                vertex.position =
+                {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.texCoord = 
+                {
+                    /* Normal case
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    attrib.texcoords[2 * index.texcoord_index + 1]
+                    */
+
+                    //.OBJ case: format assumes a coordinate system where a vertical coordinate of 0 means the bottom of the image
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                vertex.color = { 1.0f, 1.0f, 1.0f };
+
+                if (uniqueVertices.count(vertex) == 0) 
+                {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                    vertices.push_back(vertex);
+                }
+
+                indices.push_back(uniqueVertices[vertex]);
+            }
+        }
+        std::cout << "Number of vertices: " << vertices.size() << "\n";
+    }
+
     void GraphicsEngine::UpdateUniformBuffer(uint32_t currentImage)
     {
         static auto startTime = std::chrono::high_resolution_clock::now();
@@ -1054,7 +1125,7 @@ namespace Engine
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
         UniformBufferObject ubo = {};
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.proj = glm::perspective(glm::radians(45.0f), m_SwapChainExtent.width / (float)m_SwapChainExtent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1;
